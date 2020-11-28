@@ -4,6 +4,7 @@
 
 //TODO:  - check out https://github.com/mateusjunges/accel-stepper-with-distances
 //       - check out https://forum.arduino.cc/index.php?topic=515370.0
+//       - check out https://github.com/thomasfredericks/Bounce2
 
 const int stepsNeededForRevolution = 4096;  // 28BYJ-48 used, for other change the value
 
@@ -32,18 +33,20 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 AccelStepper stepper1(FULLSTEP, 15, 16, 14, 10);
 AccelStepper stepper2(FULLSTEP, 21, 19, 20, 18);
 
+int running = 0;
+
 void setup() {
   Serial.begin(9600);
-  
+
   //Stepper setups
   stepper1.setMaxSpeed(1000);
   stepper1.setAcceleration(500.0); // max acceleration (steps per second^2)
- // stepper1.setSpeed(50); // steps per second
+  //stepper1.setSpeed(300); // steps per second
   stepper2.setMaxSpeed(1000);
   stepper2.setAcceleration(500.0); // max acceleration (steps per second^2)
- // stepper2.setSpeed(50); // steps per second
+  //stepper2.setSpeed(600); // steps per second
 
- //Screen setup
+  //Screen setup
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.clearDisplay();
   display.display();
@@ -53,25 +56,28 @@ void setup() {
   display.setCursor(0, 0);
   delay(1000);
   Serial.println("setup complete");
+
+  stepper1.moveTo(stepsNeededForRevolution);
+  stepper2.moveTo(stepsNeededForRevolution);
 }
 
 void loop() {
-  Serial.println("loop started");
-  // warmup, drive revolution forward and chill
-  stepper1.setCurrentPosition(0);
-  stepper2.setCurrentPosition(0);
-  
-  driving();
-  stepper1.moveTo(stepsNeededForRevolution);
-  stepper1.runToPosition();
-  
-  stepper2.moveTo(stepsNeededForRevolution);
-  stepper2.runToPosition();
-  
-  showSteps(stepsNeededForRevolution);
-  delay(2000);
-  
-Serial.println("loop ended");
+
+  if (!running) {
+    driving();
+    delay(1000);
+    showSteps(stepsNeededForRevolution);
+  } else {
+    if (stepper1.distanceToGo() == 0) {
+      stepper1.moveTo(-stepper1.currentPosition());
+    }
+    if (stepper2.distanceToGo() == 0) {
+      stepper2.moveTo(-stepper2.currentPosition());
+    }
+    stepper1.run();
+    stepper2.run();
+  }
+  running = 1;
 }
 
 void driving(void) {
