@@ -30,14 +30,18 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 // Pro micro has funky numbers, no not mind. also look closely needed pin sequence:
 // :D IN1-IN3-IN2-IN4
 AccelStepper stepper1(FULLSTEP, 15, 16, 14, 10);
+AccelStepper stepper2(FULLSTEP, 21, 19, 20, 18);
 
 void setup() {
   Serial.begin(9600);
   
-  //Stepper setup
+  //Stepper setups
   stepper1.setMaxSpeed(1000);
   stepper1.setAcceleration(500.0); // max acceleration (steps per second^2)
  // stepper1.setSpeed(50); // steps per second
+  stepper2.setMaxSpeed(1000);
+  stepper2.setAcceleration(500.0); // max acceleration (steps per second^2)
+ // stepper2.setSpeed(50); // steps per second
 
  //Screen setup
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
@@ -55,9 +59,15 @@ void loop() {
   Serial.println("loop started");
   // warmup, drive revolution forward and chill
   stepper1.setCurrentPosition(0);
+  stepper2.setCurrentPosition(0);
+  
   driving();
   stepper1.moveTo(stepsNeededForRevolution);
   stepper1.runToPosition();
+  
+  stepper2.moveTo(stepsNeededForRevolution);
+  stepper2.runToPosition();
+  
   showSteps(stepsNeededForRevolution);
   delay(2000);
   
