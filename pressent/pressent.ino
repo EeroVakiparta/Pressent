@@ -49,13 +49,18 @@ AccelStepper stepper2(FULLSTEP, 21, 19, 20, 18);
 // For better animations menuarray is better
 // TODO make better
 byte mainMenu = 0; // start, edit, delete
+byte editMenuSelection = 0; // start, edit, delete
 bool editingProgram = false; // true if ... editing
+char upArrow = 24;
+char downArrow = 25;
+char rightArrow = 26;
+char leftArrow = 27;
 
 
 // Setup
 const int stepsNeededForRevolution = 4096;  // 28BYJ-48 used, for other change the value
-int defaultMaxSpeed = 1000; // read the values over 1000 would be unreliable?
-int defautlAcceleration = 500.0; // max acceleration (steps per second^2)
+int defaultMaxSpeed = 200; // read the values over 1000 would be unreliable?
+int defautlAcceleration = 50.0; // max acceleration (steps per second^2)
 int buttonDelay = 100;
 
 // fags
@@ -63,6 +68,13 @@ int currenctCommand = 0;
 int nextCommandNeeded = 1;
 int buttonPressed = 0;
 int stopped = 0;
+
+// toggleIndexes
+int currentMainMenuSelection = 0;
+int currentEditMenuSelection = 0;
+
+int indexToEdit = 0;
+int lastEditedIndex = 0;;
 
 //
 static byte clearCommands[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -149,21 +161,21 @@ void loop() {
     So trying to observe only the stop button, others only if not running
   */
 
-
-  if (backButton == HIGH && buttonPressed == 0 ) {
-    buttonPressed = 1;
-    delay(buttonDelay);
-    Serial.print("button pressed");
-    //    stepper1.moveTo(stepper1.currentPosition());
-    //    stepper2.moveTo(stepper2.currentPosition());
-    stepper1.stop();
-    stepper2.stop();
-    nextCommandNeeded = 0;
-    currenctCommand = 0;
-    stopped = 1;
-    printScreenMessage("Motor Stop");
-
-  }
+//
+//  if (backButton == HIGH && buttonPressed == 0 ) {
+//    buttonPressed = 1;
+//    delay(buttonDelay);
+//    Serial.print("button pressed");
+//    //    stepper1.moveTo(stepper1.currentPosition());
+//    //    stepper2.moveTo(stepper2.currentPosition());
+//    stepper1.stop();
+//    stepper2.stop();
+//    nextCommandNeeded = 0;
+//    currenctCommand = 0;
+//    stopped = 1;
+//    printScreenMessage("Motor Stop");
+//
+//  }
 
 
   // 1. Make sure program is not running
@@ -175,42 +187,45 @@ void loop() {
     cancelButton = digitalRead(cancelButtonPin);
     backButton = digitalRead(backButtonPin);
 
- 
-  }
 
-  //TODO delete confirmation -------------
 
-  // 2. Check if we are in programming menu or main menu
-  if (editingProgram) {
 
-    if (selectButton == HIGH && buttonPressed == 0 ) {// Edit menu, select selected, button pressed
-      delay(buttonDelay);
-      
+    //TODO delete confirmation -------------
 
-      buttonPressed = 1;
-    } else if (upButton == HIGH && buttonPressed == 0) { // Edit menu, up selected, button pressed
+    // 2. Check if we are in programming menu or main menu
+    if (editingProgram) {
 
-      delay(buttonDelay);
-     
+      indexToEdit = lastEditedIndex;
+      // select area could be good and also selected queue, maybe left to right
+      printEditMenuSelection(editMenuSelection);
 
-      buttonPressed = 1;
-    } else if (downButton == HIGH && buttonPressed == 0  ) { // Edit menu, down selected, button pressed
+      if (selectButton == HIGH && buttonPressed == 0 ) {// Edit menu, select selected, button pressed
+        delay(buttonDelay);
 
-      delay(buttonDelay);
 
-      buttonPressed = 1;
-    } else if (downButton == HIGH && buttonPressed == 0  ) { // Edit menu, back selected, button pressed
+        buttonPressed = 1;
+      } else if (upButton == HIGH && buttonPressed == 0) { // Edit menu, up selected, button pressed
+        toggleEditSelection(editMenuSelection, 0);
+        delay(buttonDelay);
 
-      delay(buttonDelay);
 
-      buttonPressed = 1;
-       editingProgram = false;
-    } 
-  }
+        buttonPressed = 1;
+      } else if (downButton == HIGH && buttonPressed == 0  ) { // Edit menu, down selected, button pressed
+        toggleEditSelection(editMenuSelection, 1);
+        delay(buttonDelay);
+
+        buttonPressed = 1;
+      } else if (backButton == HIGH && buttonPressed == 0  ) { // Edit menu, back selected, button pressed
+        delay(buttonDelay);
+        buttonPressed = 1;
+        editingProgram = false;
+      }
+    }
 
 
 
   } else {
+    printMainMenu(mainMenu);
     // Main menu, start selected, button pressed
     if (selectButton == HIGH && buttonPressed == 0 && mainMenu == 0 ) {
       printScreenMessage("Motor Start");
@@ -218,6 +233,7 @@ void loop() {
       stopped = 1;
       nextCommandNeeded = 1;
       buttonPressed = 1;
+
     } else if (selectButton == HIGH && buttonPressed == 0 && mainMenu == 1 ) { // Main menu, edit selected, button pressed
       printScreenMessage("Edit program");
       delay(buttonDelay);
@@ -225,25 +241,29 @@ void loop() {
       stopped = 1;
       nextCommandNeeded = 0;
       buttonPressed = 1;
+
     } else if (selectButton == HIGH && buttonPressed == 0 && mainMenu == 2 ) { // Main menu, delete selected, button pressed
       printScreenMessage("delete program");
       delay(buttonDelay);
-      memcpy(commands,clearCommands,sizeof(clearCommands));
+      memcpy(commands, clearCommands, sizeof(clearCommands));
       stopped = 1;
       nextCommandNeeded = 0;
       buttonPressed = 1;
+
     } else if (selectButton == HIGH && buttonPressed == 0 ) { // Main menu, up or down button pressed
       toggleMainMenu(mainMenu, 0);
       delay(buttonDelay);
       stopped = 1;
       nextCommandNeeded = 0;
       buttonPressed = 1;
+
     } else if (upButton == HIGH && buttonPressed == 0 ) { // Main menu, up  button pressed
       toggleMainMenu(mainMenu, 0);
       delay(buttonDelay);
       stopped = 1;
       nextCommandNeeded = 0;
       buttonPressed = 1;
+
     } else if (downButton == HIGH && buttonPressed == 0 ) { // Main menu, down button pressed
       toggleMainMenu(mainMenu, 1);
       delay(buttonDelay);
@@ -258,7 +278,7 @@ void loop() {
       executeCommand(currenctCommand);
       newCommandPrint(currenctCommand);
       delay(1000);
-      showSteps(stepsNeededForRevolution);
+      //showSteps(stepsNeededForRevolution);
       delay(20);
       nextCommandNeeded = 0;
     }
@@ -284,6 +304,30 @@ void loop() {
     currenctCommand = 0;
   }
 
+
+}
+
+
+//TODO MAKE BETTER
+// 1,2,3,4 -- ylös,alas,vasen,oikea --- 0,1 ---- up, down
+void toggleEditSelection(int currentEditMenuSelection, int directionUpDown) {
+  if (directionUpDown == 0) { // UP
+    if (currentMainMenuSelection < 2) {
+      currentMainMenuSelection++;
+    } else {
+      currentMainMenuSelection = 0;
+    }
+  } else if ( directionUpDown == 1) { // DOWN
+    if (currentMainMenuSelection > 0) {
+      currentMainMenuSelection++;
+    } else {
+      currentMainMenuSelection = 2;
+    }
+  } else {
+    Serial.print("toggleMainMenu Error");
+    printScreenMessage("Error");
+  }
+  editMenuSelection = currentMainMenuSelection;
 }
 
 //TODO MAKE BETTER
@@ -305,7 +349,7 @@ void toggleMainMenu(int currentMainMenuSelection, int directionUpDown) {
     Serial.print("toggleMainMenu Error");
     printScreenMessage("Error");
   }
-
+  mainMenu = currentMainMenuSelection;
 }
 
 // TODO: make better structure
@@ -384,7 +428,43 @@ void printMainMenu(int menu) {
     default:
       Serial.println("Bad printMainMenu");
       break;
-  display.print(menuPring);
+      display.print(menuPring);
+      display.display();
+      delay(10);
+  }
+}
+
+void printEditMenuSelection(int editMenu) {
+  char editMenuPring = 'e';
+  display.clearDisplay();
+  display.setCursor(16, 22);     // x,y
+  switch (editMenu) {
+    case 1:
+      editMenuPring = upArrow;
+      break;
+    case 2:
+      editMenuPring = downArrow;
+      break;
+    case 3:
+      editMenuPring = leftArrow;
+      break;
+    case 4:
+      editMenuPring = rightArrow;
+      break;
+    default:
+      Serial.println("Bad printEditMenuSelection");
+      break;
+      display.print(editMenuPring);
+      display.display();
+      delay(10);
+  }
+}
+
+
+void printArrow(char arrowChar) {
+  display.clearDisplay();
+  display.setCursor(16, 22);     // x,y
+  display.print(arrowChar);
   display.display();
   delay(10);
 }
