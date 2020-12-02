@@ -67,7 +67,7 @@ int buttonDelay = 100;
 int currenctCommand = 0;
 int nextCommandNeeded = 1;
 int buttonPressed = 0;
-int stopped = 0;
+int stopped = 1;
 
 // toggleIndexes
 int currentMainMenuSelection = 0;
@@ -91,11 +91,10 @@ static byte clearCommands[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 byte commands[100];
 
 // Pin definitnos
-const int upButtonPin = 4;
-const int downButtonPin = 5;
-const int selectButtonPin = 6;
-const int cancelButtonPin = 7;
-const int backButtonPin = 8;
+const int upButtonPin = 7;
+const int downButtonPin = 8;
+const int selectButtonPin = 9;
+const int backButtonPin = 4;
 /*
     Pinmap:
     2-3 screen
@@ -108,7 +107,6 @@ const int backButtonPin = 8;
 int upButton;
 int downButton;
 int selectButton;
-int cancelButton;
 int backButton;
 
 
@@ -118,7 +116,6 @@ void setup() {
   pinMode(upButtonPin, INPUT);
   pinMode(downButtonPin, INPUT);
   pinMode(selectButtonPin, INPUT);
-  pinMode(cancelButtonPin, INPUT);
   pinMode(backButtonPin, INPUT);
 
 
@@ -147,12 +144,23 @@ void setup() {
 }
 
 
+int readButtoni(int pin) {
+  pin = digitalRead(pin);
+  if (pin == 1) {
+    delay(50);
+    pin = digitalRead(pin);
+    if (pin == 0) {
+      return HIGH;
+    }
+  }
+}
 
 
 void loop() {
   buttonPressed = 0;
-  backButton = digitalRead(backButtonPin);
 
+  // JUST FOR TESTING REMOVE WHEN USING STEPPERS
+  delay(100);
 
   /*
     First of all try to check if program excecution is going on and try not to disturb it as
@@ -161,31 +169,20 @@ void loop() {
     So trying to observe only the stop button, others only if not running
   */
 
-//
-//  if (backButton == HIGH && buttonPressed == 0 ) {
-//    buttonPressed = 1;
-//    delay(buttonDelay);
-//    Serial.print("button pressed");
-//    //    stepper1.moveTo(stepper1.currentPosition());
-//    //    stepper2.moveTo(stepper2.currentPosition());
-//    stepper1.stop();
-//    stepper2.stop();
-//    nextCommandNeeded = 0;
-//    currenctCommand = 0;
-//    stopped = 1;
-//    printScreenMessage("Motor Stop");
-//
-//  }
-
-
   // 1. Make sure program is not running
   if (!stepper1.isRunning() && !stepper2.isRunning()) {
 
-    upButton = digitalRead(upButtonPin);
-    downButton = digitalRead(downButtonPin);
-    selectButton = digitalRead(selectButtonPin);
-    cancelButton = digitalRead(cancelButtonPin);
-    backButton = digitalRead(backButtonPin);
+    upButton = readButtoni(upButtonPin);
+    downButton = readButtoni(downButtonPin);
+    selectButton = readButtoni(selectButtonPin);
+    backButton = readButtoni(backButtonPin);
+
+
+    //    Serial.print("Buttonreads udsb: ");
+    //    Serial.print(upButton);
+    //    Serial.print(downButton);
+    //    Serial.print(selectButton);
+    //    Serial.println(backButton);
 
 
 
@@ -194,123 +191,139 @@ void loop() {
 
     // 2. Check if we are in programming menu or main menu
     if (editingProgram) {
+      Serial.println("Is edit mode");
 
       indexToEdit = lastEditedIndex;
       // select area could be good and also selected queue, maybe left to right
       printEditMenuSelection(editMenuSelection);
 
       if (selectButton == HIGH && buttonPressed == 0 ) {// Edit menu, select selected, button pressed
+        Serial.println("selectButton pressed (edit)");
         delay(buttonDelay);
 
-
         buttonPressed = 1;
+        
       } else if (upButton == HIGH && buttonPressed == 0) { // Edit menu, up selected, button pressed
+        Serial.println("upButton pressed (edit)");
         toggleEditSelection(editMenuSelection, 0);
         delay(buttonDelay);
 
 
         buttonPressed = 1;
+        
       } else if (downButton == HIGH && buttonPressed == 0  ) { // Edit menu, down selected, button pressed
+        Serial.println("downButton pressed (edit)");
         toggleEditSelection(editMenuSelection, 1);
         delay(buttonDelay);
 
         buttonPressed = 1;
+        
       } else if (backButton == HIGH && buttonPressed == 0  ) { // Edit menu, back selected, button pressed
+        Serial.println("backButton pressed (edit)");
         delay(buttonDelay);
         buttonPressed = 1;
         editingProgram = false;
+      }
+
+    } else {
+      printMainMenu(mainMenu);
+      Serial.println("Is mainmanu mode");
+
+
+      if (selectButton == HIGH && buttonPressed == 0 && mainMenu == 0 ) {// Main menu, START selected, button pressed
+        Serial.println("selectButton pressed (main)");
+        printScreenMessage("Motor Start");
+        delay(buttonDelay);
+        stopped = 1;
+        nextCommandNeeded = 1;
+        buttonPressed = 1;
+
+      } else if (selectButton == HIGH && buttonPressed == 0 && mainMenu == 1 ) { // Main menu, EDIT selected, button pressed
+        Serial.println("selectButton pressed (main)");
+        printScreenMessage("Edit program");
+        delay(buttonDelay);
+        editingProgram = true;
+        stopped = 1;
+        nextCommandNeeded = 0;
+        buttonPressed = 1;
+
+      } else if (selectButton == HIGH && buttonPressed == 0 && mainMenu == 2 ) { // Main menu, DELETE selected, button pressed
+        Serial.println("selectButton pressed (main)");
+        printScreenMessage("delete program");
+        delay(buttonDelay);
+        memcpy(commands, clearCommands, sizeof(clearCommands));
+        stopped = 1;
+        nextCommandNeeded = 0;
+        buttonPressed = 1;
+
+      } else if (selectButton == HIGH && buttonPressed == 0 ) { // Main menu, up or down button pressed
+        Serial.println("selectButton pressed (main)");
+        toggleMainMenu(mainMenu, 0);
+        delay(buttonDelay);
+        stopped = 1;
+        nextCommandNeeded = 0;
+        buttonPressed = 1;
+
+
+      } else if (upButton == HIGH && buttonPressed == 0 ) { // Main menu, up  button pressed
+        Serial.println("upButton pressed (main)");
+        toggleMainMenu(mainMenu, 0);
+        delay(buttonDelay);
+        stopped = 1;
+        nextCommandNeeded = 0;
+        buttonPressed = 1;
+
+      } else if (downButton == HIGH && buttonPressed == 0 ) { // Main menu, down button pressed
+        Serial.println("downButton pressed (main)");
+        toggleMainMenu(mainMenu, 1);
+        delay(buttonDelay);
+        stopped = 1;
+        nextCommandNeeded = 0;
+        buttonPressed = 1;
+      }
+
+
+
+      if (nextCommandNeeded && !stopped) {
+        executeCommand(currenctCommand);
+        newCommandPrint(currenctCommand);
+        delay(1000);
+        //showSteps(stepsNeededForRevolution);
+        delay(20);
+        nextCommandNeeded = 0;
       }
     }
 
 
 
-  } else {
-    printMainMenu(mainMenu);
-    // Main menu, start selected, button pressed
-    if (selectButton == HIGH && buttonPressed == 0 && mainMenu == 0 ) {
-      printScreenMessage("Motor Start");
-      delay(buttonDelay);
-      stopped = 1;
+    // run the steppers untill they reach their destination
+    if (stepper1.distanceToGo() == 0 && stepper2.distanceToGo() == 0 && !stopped) {
+      Serial.println("destination reached");
+      stepper1.stop();
+      stepper2.stop();
+      currenctCommand++;
       nextCommandNeeded = 1;
-      buttonPressed = 1;
-
-    } else if (selectButton == HIGH && buttonPressed == 0 && mainMenu == 1 ) { // Main menu, edit selected, button pressed
-      printScreenMessage("Edit program");
-      delay(buttonDelay);
-      editingProgram = true;
-      stopped = 1;
-      nextCommandNeeded = 0;
-      buttonPressed = 1;
-
-    } else if (selectButton == HIGH && buttonPressed == 0 && mainMenu == 2 ) { // Main menu, delete selected, button pressed
-      printScreenMessage("delete program");
-      delay(buttonDelay);
-      memcpy(commands, clearCommands, sizeof(clearCommands));
-      stopped = 1;
-      nextCommandNeeded = 0;
-      buttonPressed = 1;
-
-    } else if (selectButton == HIGH && buttonPressed == 0 ) { // Main menu, up or down button pressed
-      toggleMainMenu(mainMenu, 0);
-      delay(buttonDelay);
-      stopped = 1;
-      nextCommandNeeded = 0;
-      buttonPressed = 1;
-
-    } else if (upButton == HIGH && buttonPressed == 0 ) { // Main menu, up  button pressed
-      toggleMainMenu(mainMenu, 0);
-      delay(buttonDelay);
-      stopped = 1;
-      nextCommandNeeded = 0;
-      buttonPressed = 1;
-
-    } else if (downButton == HIGH && buttonPressed == 0 ) { // Main menu, down button pressed
-      toggleMainMenu(mainMenu, 1);
-      delay(buttonDelay);
-      stopped = 1;
-      nextCommandNeeded = 0;
-      buttonPressed = 1;
+    } else {
+      stepper1.run();
+      stepper2.run();
     }
 
 
-
-    if (nextCommandNeeded && !stopped) {
-      executeCommand(currenctCommand);
-      newCommandPrint(currenctCommand);
-      delay(1000);
-      //showSteps(stepsNeededForRevolution);
-      delay(20);
-      nextCommandNeeded = 0;
+    // temporary for debugging:
+    if (currenctCommand > 5) {
+      currenctCommand = 0;
     }
+
+
   }
-
-
-
-  // run the steppers untill they reach their destination
-  if (stepper1.distanceToGo() == 0 && stepper2.distanceToGo() == 0 && !stopped) {
-    Serial.print("destination reached");
-    stepper1.stop();
-    stepper2.stop();
-    currenctCommand++;
-    nextCommandNeeded = 1;
-  } else {
-    stepper1.run();
-    stepper2.run();
-  }
-
-
-  // temporary for debugging:
-  if (currenctCommand > 5) {
-    currenctCommand = 0;
-  }
-
-
 }
 
 
 //TODO MAKE BETTER
 // 1,2,3,4 -- ylös,alas,vasen,oikea --- 0,1 ---- up, down
 void toggleEditSelection(int currentEditMenuSelection, int directionUpDown) {
+  Serial.print("toggleEditSelection direction: ");
+  Serial.println(directionUpDown);
   if (directionUpDown == 0) { // UP
     if (currentMainMenuSelection < 2) {
       currentMainMenuSelection++;
@@ -333,6 +346,8 @@ void toggleEditSelection(int currentEditMenuSelection, int directionUpDown) {
 //TODO MAKE BETTER
 // 0,1,2 -- start,edit,delete --- 0,1 ---- up, down
 void toggleMainMenu(int currentMainMenuSelection, int directionUpDown) {
+  Serial.print("toggleMainMenu direction: ");
+  Serial.println(directionUpDown);
   if (directionUpDown == 0) { // UP
     if (currentMainMenuSelection < 2) {
       currentMainMenuSelection++;
@@ -428,10 +443,10 @@ void printMainMenu(int menu) {
     default:
       Serial.println("Bad printMainMenu");
       break;
-      display.print(menuPring);
-      display.display();
-      delay(10);
   }
+  display.print(menuPring);
+  display.display();
+  delay(10);
 }
 
 void printEditMenuSelection(int editMenu) {
